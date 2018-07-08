@@ -4,86 +4,85 @@ group: edge
 
 addons:
   hosts: aeg-osx
+
 os: linux
 language: generic
 cache:
   directories:
   - depends/built
   - depends/sdk-sources
-  - "$HOME/.ccache"
+  - $HOME/.ccache
 env:
   global:
-  - MAKEJOBS=-j4
-  - RUN_TESTS=false
-  - CHECK_DOC=0
-  - BOOST_TEST_RANDOM=1$TRAVIS_BUILD_ID
-  - CCACHE_SIZE=100M
-  - CCACHE_TEMPDIR=/tmp/.ccache-temp
-  - CCACHE_COMPRESS=1
-  - BASE_OUTDIR=$TRAVIS_BUILD_DIR/out
-  - SDK_URL=https://bitcoincore.org/depends-sources/sdks
-  - PYTHON_DEBUG=1
-  - WINEDEBUG=fixme-all
+    - MAKEJOBS=-j4
+    - RUN_TESTS=false
+    - CHECK_DOC=0
+    - BOOST_TEST_RANDOM=1$TRAVIS_BUILD_ID
+    - CCACHE_SIZE=100M
+    - CCACHE_TEMPDIR=/tmp/.ccache-temp
+    - CCACHE_COMPRESS=1
+    - BASE_OUTDIR=$TRAVIS_BUILD_DIR/out
+    - SDK_URL=https://bitcoincore.org/depends-sources/sdks
+    - PYTHON_DEBUG=1
+    - WINEDEBUG=fixme-all
+
   matrix:
-  - HOST=x86_64-apple-darwin11 PACKAGES="cmake imagemagick libcap-dev librsvg2-bin
-    libz-dev libbz2-dev libtiff-tools python-dev" BITCOIN_CONFIG="--enable-reduce-exports"
-    OSX_SDK=10.11 GOAL="deploy"
+    - HOST=x86_64-unknown-linux-gnu PACKAGES="bc python3-zmq" DEP_OPTS="NO_UPNP=1 DEBUG=1" RUN_TESTS=true GOAL="install" BITCOIN_CONFIG="--enable-zmq --enable-glibc-back-compat --enable-reduce-exports CPPFLAGS=-DDEBUG_LOCKORDER" PYZMQ=true
+
 before_install:
-- export PATH=$(echo $PATH | tr ':' "\n" | sed '/\/opt\/python/d' | tr "\n" ":" |
-  sed "s|::|:|g")
+    - export PATH=$(echo $PATH | tr ':' "\n" | sed '/\/opt\/python/d' | tr "\n" ":" | sed "s|::|:|g")
 install:
-- if [ "$PYZMQ" = "true" ]; then pip install pyzmq --user ; fi
-- if [ -n "$PPA" ]; then travis_retry sudo add-apt-repository "$PPA" -y; fi
-- if [ -n "$DPKG_ADD_ARCH" ]; then sudo dpkg --add-architecture "$DPKG_ADD_ARCH" ;
-  fi
-- if [ -n "$PACKAGES" ]; then travis_retry sudo apt-get update; fi
-- if [ -n "$PACKAGES" ]; then travis_retry sudo apt-get install --no-install-recommends
-  --no-upgrade -qq $PACKAGES; fi
+    - if [ "$PYZMQ" = "true" ]; then pip install pyzmq --user ; fi
+    - if [ -n "$PPA" ]; then travis_retry sudo add-apt-repository "$PPA" -y; fi
+    - if [ -n "$DPKG_ADD_ARCH" ]; then sudo dpkg --add-architecture "$DPKG_ADD_ARCH" ; fi
+    - if [ -n "$PACKAGES" ]; then travis_retry sudo apt-get update; fi
+    - if [ -n "$PACKAGES" ]; then travis_retry sudo apt-get install --no-install-recommends --no-upgrade -qq $PACKAGES; fi
 before_script:
-- unset CC; unset CXX
-- if [ "$CHECK_DOC" = 1 ]; then contrib/devtools/check-doc.py; fi
-- mkdir -p depends/SDKs depends/sdk-sources
-- if [ -n "$OSX_SDK" -a ! -f depends/sdk-sources/MacOSX${OSX_SDK}.sdk.tar.gz ]; then
-  curl --location --fail $SDK_URL/MacOSX${OSX_SDK}.sdk.tar.gz -o depends/sdk-sources/MacOSX${OSX_SDK}.sdk.tar.gz;
-  fi
-- if [ -n "$OSX_SDK" -a -f depends/sdk-sources/MacOSX${OSX_SDK}.sdk.tar.gz ]; then
-  tar -C depends/SDKs -xf depends/sdk-sources/MacOSX${OSX_SDK}.sdk.tar.gz; fi
-- make $MAKEJOBS -C depends HOST=$HOST $DEP_OPTS
+    - unset CC; unset CXX
+    - if [ "$CHECK_DOC" = 1 ]; then contrib/devtools/check-doc.py; fi
+    - mkdir -p depends/SDKs depends/sdk-sources
+    - if [ -n "$OSX_SDK" -a ! -f depends/sdk-sources/MacOSX${OSX_SDK}.sdk.tar.gz ]; then curl --location --fail $SDK_URL/MacOSX${OSX_SDK}.sdk.tar.gz -o depends/sdk-sources/MacOSX${OSX_SDK}.sdk.tar.gz; fi
+    - if [ -n "$OSX_SDK" -a -f depends/sdk-sources/MacOSX${OSX_SDK}.sdk.tar.gz ]; then tar -C depends/SDKs -xf depends/sdk-sources/MacOSX${OSX_SDK}.sdk.tar.gz; fi
+    - make $MAKEJOBS -C depends HOST=$HOST $DEP_OPTS
 script:
-- export TRAVIS_COMMIT_LOG=`git log --format=fuller -1`
-- if [ -n "$USE_SHELL" ]; then export CONFIG_SHELL="$USE_SHELL"; fi
-- OUTDIR=$BASE_OUTDIR/$TRAVIS_PULL_REQUEST/$TRAVIS_JOB_NUMBER-$HOST
-- BITCOIN_CONFIG_ALL="--disable-dependency-tracking --prefix=$TRAVIS_BUILD_DIR/depends/$HOST
-  --bindir=$OUTDIR/bin --libdir=$OUTDIR/lib"
-- depends/$HOST/native/bin/ccache --max-size=$CCACHE_SIZE
-- test -n "$USE_SHELL" && eval '"$USE_SHELL" -c "./autogen.sh"' || ./autogen.sh
-- "./configure --cache-file=config.cache $BITCOIN_CONFIG_ALL $BITCOIN_CONFIG || (
-  cat config.log && false)"
-- make distdir PACKAGE=bitcoin VERSION=$HOST
-- cd bitcoin-$HOST
-- "./configure --cache-file=../config.cache $BITCOIN_CONFIG_ALL $BITCOIN_CONFIG ||
-  ( cat config.log && false)"
-- make $MAKEJOBS $GOAL || ( echo "Build failure. Verbose build follows." && make $GOAL
-  V=1 ; false )
-- if [ -n "$OSX_SDK" ]; then cd .. ; fi
-- if [ -n "$OSX_SDK" ]; then mkdir out; fi
-- if [ -n "$OSX_SDK" ]; then mkdir out/$TRAVIS_PULL_REQUEST; fi
-- if [ -n "$OSX_SDK" ]; then mkdir out/$TRAVIS_PULL_REQUEST/$TRAVIS_JOB_NUMBER-$HOST;
-  fi
-- if [ -n "$OSX_SDK" ]; then mkdir ${OUTDIR}/bin; fi
-- export LD_LIBRARY_PATH=$TRAVIS_BUILD_DIR/depends/$HOST/lib
+    - export TRAVIS_COMMIT_LOG=`git log --format=fuller -1`
+    - if [ -n "$USE_SHELL" ]; then export CONFIG_SHELL="$USE_SHELL"; fi
+    - OUTDIR=$BASE_OUTDIR/$TRAVIS_PULL_REQUEST/$TRAVIS_JOB_NUMBER-$HOST
+    - BITCOIN_CONFIG_ALL="--disable-dependency-tracking --prefix=$TRAVIS_BUILD_DIR/depends/$HOST --bindir=$OUTDIR/bin --libdir=$OUTDIR/lib"
+    - depends/$HOST/native/bin/ccache --max-size=$CCACHE_SIZE
+    - test -n "$USE_SHELL" && eval '"$USE_SHELL" -c "./autogen.sh"' || ./autogen.sh
+    - ./configure --cache-file=config.cache $BITCOIN_CONFIG_ALL $BITCOIN_CONFIG || ( cat config.log && false)
+    - make distdir PACKAGE=bitcoin VERSION=$HOST
+    - cd bitcoin-$HOST
+    - ./configure --cache-file=../config.cache $BITCOIN_CONFIG_ALL $BITCOIN_CONFIG || ( cat config.log && false)
+    - make $MAKEJOBS $GOAL || ( echo "Build failure. Verbose build follows." && make $GOAL V=1 ; false )
+    - if [ -n "$OSX_SDK" ]; then cd .. ; fi
+    - if [ -n "$OSX_SDK" ]; then mkdir out; fi
+    - if [ -n "$OSX_SDK" ]; then mkdir out/$TRAVIS_PULL_REQUEST; fi
+    - if [ -n "$OSX_SDK" ]; then mkdir out/$TRAVIS_PULL_REQUEST/$TRAVIS_JOB_NUMBER-$HOST; fi
+    - if [ -n "$OSX_SDK" ]; then mkdir ${OUTDIR}/bin; fi
+    - export LD_LIBRARY_PATH=$TRAVIS_BUILD_DIR/depends/$HOST/lib
 after_script:
-- echo $TRAVIS_COMMIT_RANGE
-- echo $TRAVIS_COMMIT_LOG
+    - echo $TRAVIS_COMMIT_RANGE
+    - echo $TRAVIS_COMMIT_LOG
 before_deploy:
-- git config --local user.name "aegosx"
-- git config --local user.email "webmaster@aegeus.io"
-- git tag "$(date +'%Y%m%d%H%M%S')-$(git log --format=%h -1)"
+    - git config --local user.name "aegdev"
+    - git config --local user.email "webmaster@aegeus.io"
+    - git tag "$(date +'%Y%m%d%H%M%S')-$(git log --format=%h -1)"
+    - rm /home/travis/build/aegdev/aegosx/out/false/*/bin/*test*
+    - strip /home/travis/build/aegdev/aegosx/out/false/*/bin/aegeusd
+    - strip /home/travis/build/aegdev/aegosx/out/false/*/bin/aegeus-qt
+    - mkdir /home/travis/build/aegdev/aegosx/Aegeus-2.0-Linux-64-bit
+    - mv /home/travis/build/aegdev/aegosx/out/false/*/bin/aegeusd /home/travis/build/aegdev/aegosx/Aegeus-2.0-Linux-64-bit/
+    - mv /home/travis/build/aegdev/aegosx/out/false/*/bin/aegeus-qt /home/travis/build/aegdev/aegosx/Aegeus-2.0-Linux-64-bit/
+    - mv /home/travis/build/aegdev/aegosx/out/false/*/bin/aegeus-cli /home/travis/build/aegdev/aegosx/Aegeus-2.0-Linux-64-bit/
+    - mv /home/travis/build/aegdev/aegosx/out/false/*/bin/aegeus-tx /home/travis/build/aegdev/aegosx/Aegeus-2.0-Linux-64-bit/
+    - cd /home/travis/build/aegdev/aegosx && tar -cf Aegeus-2.0-Linux-64-bit.tar Aegeus-2.0-Linux-64-bit && gzip -9 Aegeus-2.0-Linux-64-bit.tar
 deploy:
   provider: releases
   api_key:
     secure: vg9eMzz2y5SQ8pQ0jzvcvXx6Edj6qee6Pwu1nDi1GTDY2Vohb4pHpH1nFLWBwrKJX77fO4+83nEWbXxCTyJbD49iw24U8jakNZPYcwmnZFZ90JuJXDeFnPoY8QAp9Nvdp5++604mXJxVmYj4pSekiUYzk6kWm4gRVOxWqPRlVTeSBZD8/VtUrPai9lZQMx7kR23JyI41tH0Srf7nHaK/RxOK76g1ikLfWY3QUhI0yxHXecKkdfcbaSBkxQpfa8YUwP1ZUr7yU09UMmVp3ETEmVPNHxyv2RHPN+QMRjeUPlCJyjz1PZtIem3VM8s8k6iOjaiDaXPK7y6QxRBx+RvMGiWCpeJ/UM3fgiXNdCGWNhgmVPyphu+XS/qz/81rPMpG3XNA39NQPsdoyT5BSEs5bRRh7AP8Q0BlM9n4HrSmBihjtp/7n18NEs+hRVvRUHQkpahvb3qd5xCav1Z1qgOzgCxjPyQMtdD0qVup06ewp2i8aYM2hZdYKUOVyG2l3Jc83PjL6sL17oiyNkHYGpuWZ4LHRz/xKBD1LWRmViKPZp+/W7AKUUruN9zVvfrUEQurP8EwyF8JMz495e9JKjAfh2YiuKRfFEw57yVQWwK/1465228f3XY4+e/16deS7PYiNK/LwoMvCXTfNyiU3dxe+3JgJnQ/+QdOt4PkWtXeqLA=
-  file:  /home/travis/build/aegdev/aegosx/bitcoin-x86_64-apple-darwin11/Aegeus-Core.dmg
+  file: /home/travis/build/aegdev/aegosx/Aegeus-2.0-Linux-64-bit.tar.gz
   skip_cleanup: true
   on:
     repo: aegdev/aegosx
