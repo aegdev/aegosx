@@ -1,6 +1,7 @@
 sudo: required
 dist: trusty
 group: edge
+
 addons:
   hosts: aeg-osx
 os: linux
